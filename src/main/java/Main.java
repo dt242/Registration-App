@@ -13,8 +13,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
+    private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
@@ -112,6 +115,10 @@ public class Main {
                         try (ResultSet resultSet = preparedStatement.executeQuery()) {
                             if (resultSet.next()) {
                                 String firstName = resultSet.getString("first_name");
+                                String sessionToken = UUID.randomUUID().toString();
+                                activeSessions.put(sessionToken, email);
+                                String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
+                                exchange.getResponseHeaders().add("Set-Cookie", cookieString);
                                 responseText = "Login was successful! Welcome back, " + firstName;
                             } else {
                                 responseText = "Login was unsuccessful!";
