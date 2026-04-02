@@ -2,7 +2,12 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -34,7 +39,11 @@ public class Main {
                 os.write(response);
                 os.close();
             } else if ("POST".equals(exchange.getRequestMethod())) {
-                String response = "The server received the query from the form!";
+                InputStream is = exchange.getRequestBody();
+                String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> parsedData = parseFormData(rawFormData);
+                String firstName = parsedData.get("firstName");
+                String response = "Hello " + firstName + "! We received your data.";
                 exchange.sendResponseHeaders(200, response.length());
                 OutputStream os = exchange.getResponseBody();
                 os.write(response.getBytes());
@@ -44,5 +53,19 @@ public class Main {
 
         server.setExecutor(null);
         server.start();
+    }
+
+    private static java.util.Map<String, String> parseFormData(String formData) throws UnsupportedEncodingException {
+        Map<String, String> map = new HashMap<>();
+        String[] pairs = formData.split("&");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=");
+            if (keyValue.length == 2) {
+                String key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
+                String value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
+                map.put(key, value);
+            }
+        }
+        return map;
     }
 }
