@@ -12,6 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -134,6 +135,24 @@ public class Main {
                 os.write(responseText.getBytes());
                 os.close();
             }
+        });
+
+        server.createContext("/logout", exchange -> {
+            List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+            if (cookies != null) {
+                for (String cookie : cookies) {
+                    if (cookie.contains("session_token=")) {
+                        String token = cookie.split("session_token=")[1].split(";")[0];
+                        activeSessions.remove(token);
+                        break;
+                    }
+                }
+            }
+            String killCookie = "session_token=; HttpOnly; Path=/; Max-Age=0";
+            exchange.getResponseHeaders().add("Set-Cookie", killCookie);
+            exchange.getResponseHeaders().add("Location", "/login");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
         });
 
         server.setExecutor(null);
