@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,13 +64,64 @@ public class Main {
                         preparedStatement.setString(4, hashedPassword);
                         preparedStatement.executeUpdate();
                         responseText = "Registration was successful! Hello, " + firstName;
-                        System.out.println("Нов потребител в базата: " + email);
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
                     responseText = "Error!";
                 }
 
+                exchange.sendResponseHeaders(200, responseText.length());
+                OutputStream os = exchange.getResponseBody();
+                os.write(responseText.getBytes());
+                os.close();
+            }
+        });
+
+        server.createContext("/login", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
+                if (is == null) {
+                    String error = "404 - File not found!";
+                    exchange.sendResponseHeaders(404, error.length());
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(error.getBytes());
+                    os.close();
+                    return;
+                }
+                byte[] response = is.readAllBytes();
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+                exchange.sendResponseHeaders(200, response.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(response);
+                os.close();
+            } else if ("POST".equals(exchange.getRequestMethod())) {
+                InputStream is = exchange.getRequestBody();
+                String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> parsedData = parseFormData(rawFormData);
+                String email = parsedData.get("email");
+                String rawPassword = parsedData.get("password");
+
+                String hashedPassword = hashPassword(rawPassword);
+                String responseText;
+
+                try (Connection connection = DatabaseManager.getConnection()) {
+                    String sql = "SELECT first_name FROM users WHERE email = ? AND password_hash = ?";
+                    try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                        preparedStatement.setString(1, email);
+                        preparedStatement.setString(2, hashedPassword);
+                        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                            if (resultSet.next()) {
+                                String firstName = resultSet.getString("first_name");
+                                responseText = "Login was successful! Welcome back, " + firstName;
+                            } else {
+                                responseText = "Login was unsuccessful!";
+                            }
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    responseText = "Error!";
+                }
                 exchange.sendResponseHeaders(200, responseText.length());
                 OutputStream os = exchange.getResponseBody();
                 os.write(responseText.getBytes());
