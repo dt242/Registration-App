@@ -6,6 +6,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,10 +47,32 @@ public class Main {
                 String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> parsedData = parseFormData(rawFormData);
                 String firstName = parsedData.get("firstName");
-                String response = "Hello " + firstName + "! We received your data.";
-                exchange.sendResponseHeaders(200, response.length());
+                String lastName = parsedData.get("lastName");
+                String email = parsedData.get("email");
+                String rawPassword = parsedData.get("password");
+
+                String hashedPassword = hashPassword(rawPassword);
+                String responseText;
+
+                try (Connection connection = DatabaseManager.getConnection()) {
+                    String sql = "INSERT INTO users (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                        preparedStatement.setString(1, firstName);
+                        preparedStatement.setString(2, lastName);
+                        preparedStatement.setString(3, email);
+                        preparedStatement.setString(4, hashedPassword);
+                        preparedStatement.executeUpdate();
+                        responseText = "Registration was successful! Hello, " + firstName;
+                        System.out.println("Нов потребител в базата: " + email);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    responseText = "Error!";
+                }
+
+                exchange.sendResponseHeaders(200, responseText.length());
                 OutputStream os = exchange.getResponseBody();
-                os.write(response.getBytes());
+                os.write(responseText.getBytes());
                 os.close();
             }
         });
@@ -67,5 +93,21 @@ public class Main {
             }
         }
         return map;
+    }
+
+    private static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Error during encryption!", e);
+        }
     }
 }
