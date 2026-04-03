@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>My profile</title>
+</head>
+<body>
+<h1>Welcome, {{firstName}}!</h1>
+<p>Your email is: <strong>{{email}}</strong></p>
+<hr>
+
+<h3>Edit Profile</h3>
+
+<form id="profileForm" action="/profile" method="POST">
+    <label>New First Name:</label><br>
+    <input type="text" name="firstName" value="{{firstName}}" required><br><br>
+
+    <label>New Last Name:</label><br>
+    <input type="text" name="lastName" value="{{lastName}}" required><br><br>
+
+    <label>New Password (not required):</label><br>
+    <input type="password" name="password"><br><br>
+
+    <button type="submit">Save Changes</button>
+</form>
+
+<div id="notification" style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+
+<br>
+<form action="/logout" method="GET">
+    <button type="submit" style="color: red;">Logout</button>
+</form>
+
+<script>
+        document.getElementById('profileForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const notifyBox = document.getElementById('notification');
+            const formData = new URLSearchParams(new FormData(form));
+            fetch('/profile', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    notifyBox.style.display = 'block';
+                    notifyBox.style.backgroundColor = '#d4edda';
+                    notifyBox.style.color = '#155724';
+                    notifyBox.innerText = 'Changes saved successfully!';
+                    form.querySelector('input[name="password"]').value = '';
+                    const newFirstName = form.querySelector('input[name="firstName"]').value;
+                    document.querySelector('h1').innerText = 'Welcome, ' + newFirstName + '!';
+                    setTimeout(() => notifyBox.style.display = 'none', 3000);
+                }
+            })
+            .catch(error => {
+                console.error('Server communication error:', error);
+            });
+        });
+    </script>
+</body>
+</html>

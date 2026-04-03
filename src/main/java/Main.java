@@ -155,11 +155,106 @@ public class Main {
             exchange.close();
         });
 
+        server.createContext("/profile", exchange -> {
+            List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+            String userEmail = null;
+            if (cookies != null) {
+                for (String cookie : cookies) {
+                    if (cookie.contains("session_token=")) {
+                        String token = cookie.split("session_token=")[1].split(";")[0];
+                        userEmail = activeSessions.get(token);
+                        break;
+                    }
+                }
+            }
+            if (userEmail == null) {
+                String error = "Unauthorized! Login first.";
+                exchange.sendResponseHeaders(401, error.length());
+                OutputStream os = exchange.getResponseBody();
+                os.write(error.getBytes());
+                os.close();
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String currentFirstName = "";
+                String currentLastName = "";
+                try (Connection connection = DatabaseManager.getConnection();
+                     PreparedStatement preparedStatement = connection.prepareStatement("SELECT first_name, last_name FROM users WHERE email = ?")) {
+                    preparedStatement.setString(1, userEmail);
+                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                        if (resultSet.next()) {
+                            currentFirstName = resultSet.getString("first_name");
+                            currentLastName = resultSet.getString("last_name");
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
+                if (is == null) {
+                    String error = "404 - File not found!";
+                    exchange.sendResponseHeaders(404, error.length());
+                    OutputStream os = exchange.getResponseBody();
+                    os.write(error.getBytes());
+                    os.close();
+                    return;
+                }
+                String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                String finalHtml = htmlTemplate
+                        .replace("{{email}}", userEmail)
+                        .replace("{{firstName}}", currentFirstName)
+                        .replace("{{lastName}}", currentLastName);
+                byte[] responseBytes = finalHtml.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+                exchange.sendResponseHeaders(200, responseBytes.length);
+                OutputStream os = exchange.getResponseBody();
+                os.write(responseBytes);
+                os.close();
+
+            } else if ("POST".equals(exchange.getRequestMethod())) {
+                InputStream is = exchange.getRequestBody();
+                String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                Map<String, String> parsedData = parseFormData(rawFormData);
+                String newFirstName = parsedData.get("firstName");
+                String newLastName = parsedData.get("lastName");
+                String newPassword = parsedData.get("password");
+                try (Connection connection = DatabaseManager.getConnection()) {
+                    if (newPassword != null && !newPassword.trim().isEmpty()) {
+                        String sql = "UPDATE users SET first_name = ?, last_name = ?, password_hash = ? WHERE email = ?";
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                            preparedStatement.setString(1, newFirstName);
+                            preparedStatement.setString(2, newLastName);
+                            preparedStatement.setString(3, hashPassword(newPassword));
+                            preparedStatement.setString(4, userEmail);
+                            preparedStatement.executeUpdate();
+                        }
+                    } else {
+                        String sql = "UPDATE users SET first_name = ?, last_name = ? WHERE email = ?";
+                        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                            preparedStatement.setString(1, newFirstName);
+                            preparedStatement.setString(2, newLastName);
+                            preparedStatement.setString(3, userEmail);
+                            preparedStatement.executeUpdate();
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+                String jsonResponse = "{\"success\": true}";
+                exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+                exchange.sendResponseHeaders(200, jsonResponse.length());
+                OutputStream os = exchange.getResponseBody();
+                os.write(jsonResponse.getBytes(StandardCharsets.UTF_8));
+                os.close();
+            }
+        });
+
         server.setExecutor(null);
         server.start();
     }
 
-    private static java.util.Map<String, String> parseFormData(String formData) throws UnsupportedEncodingException {
+    private static Map<String, String> parseFormData(String formData) throws UnsupportedEncodingException {
         Map<String, String> map = new HashMap<>();
         String[] pairs = formData.split("&");
         for (String pair : pairs) {
