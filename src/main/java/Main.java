@@ -1,4 +1,9 @@
 import com.sun.net.httpserver.HttpServer;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,14 +16,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
+    private static final java.util.Map<String, String> activeCaptchas = new java.util.concurrent.ConcurrentHashMap<>();
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
@@ -47,6 +51,7 @@ public class Main {
                 OutputStream os = exchange.getResponseBody();
                 os.write(response);
                 os.close();
+
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
                 String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -56,9 +61,30 @@ public class Main {
                 String email = parsedData.get("email");
                 String rawPassword = parsedData.get("password");
 
+                String userCaptcha = parsedData.get("captcha");
+                String currentCaptchaId = null;
+                List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+                if (cookies != null) {
+                    for (String cookie : cookies) {
+                        if (cookie.contains("captcha_id=")) {
+                            currentCaptchaId = cookie.split("captcha_id=")[1].split(";")[0];
+                            break;
+                        }
+                    }
+                }
+                String realCaptchaText = activeCaptchas.get(currentCaptchaId);
+                if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
+                    String error = "Wrong text! Try again.";
+                    exchange.sendResponseHeaders(400, error.length());
+                    java.io.OutputStream os = exchange.getResponseBody();
+                    os.write(error.getBytes());
+                    os.close();
+                    return;
+                }
+                activeCaptchas.remove(currentCaptchaId);
+
                 String hashedPassword = hashPassword(rawPassword);
                 String responseText;
-
                 try (Connection connection = DatabaseManager.getConnection()) {
                     String sql = "INSERT INTO users (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)";
                     try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
@@ -73,7 +99,6 @@ public class Main {
                     e.printStackTrace();
                     responseText = "Error!";
                 }
-
                 exchange.sendResponseHeaders(200, responseText.length());
                 OutputStream os = exchange.getResponseBody();
                 os.write(responseText.getBytes());
@@ -98,16 +123,15 @@ public class Main {
                 OutputStream os = exchange.getResponseBody();
                 os.write(response);
                 os.close();
+
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
                 String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 Map<String, String> parsedData = parseFormData(rawFormData);
                 String email = parsedData.get("email");
                 String rawPassword = parsedData.get("password");
-
                 String hashedPassword = hashPassword(rawPassword);
                 String responseText;
-
                 try (Connection connection = DatabaseManager.getConnection()) {
                     String sql = "SELECT first_name FROM users WHERE email = ? AND password_hash = ?";
                     try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
@@ -248,6 +272,57 @@ public class Main {
                 os.write(jsonResponse.getBytes(StandardCharsets.UTF_8));
                 os.close();
             }
+        });
+
+        server.createContext("/captcha", exchange -> {
+            String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            StringBuilder captchaText = new StringBuilder();
+            Random rnd = new Random();
+            for (int i = 0; i < 5; i++) {
+                captchaText.append(chars.charAt(rnd.nextInt(chars.length())));
+            }
+            String captchaId = UUID.randomUUID().toString();
+            activeCaptchas.put(captchaId, captchaText.toString());
+            String cookieString = "captcha_id=" + captchaId + "; HttpOnly; Path=/";
+            exchange.getResponseHeaders().add("Set-Cookie", cookieString);
+            int width = 160;
+            int height = 50;
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = image.createGraphics();
+            g2d.setColor(Color.WHITE);
+            g2d.fillRect(0, 0, width, height);
+            g2d.setColor(Color.DARK_GRAY);
+            for (int i = 0; i < 8; i++) {
+                int x1 = rnd.nextInt(width);
+                int y1 = rnd.nextInt(height);
+                int x2 = rnd.nextInt(width);
+                int y2 = rnd.nextInt(height);
+                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.drawLine(x1, y1, x2, y2);
+            }
+            for (int i = 0; i < 5; i++) {
+                int x1 = rnd.nextInt(width);
+                int y1 = rnd.nextInt(height);
+                int ovalWidth = rnd.nextInt(width);
+                int ovalHeight = rnd.nextInt(height);
+                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.drawOval(x1, y1,ovalWidth, ovalHeight);
+            }
+            g2d.setStroke(new java.awt.BasicStroke(1.0f));
+            g2d.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 35));
+            g2d.setColor(Color.DARK_GRAY);
+            for (int i = 0; i < captchaText.length(); i++) {
+                AffineTransform affineTransform = new AffineTransform();
+                affineTransform.rotate(rnd.nextDouble() * 0.4 - 0.2, 0, 0);
+                Font rotatedFont = g2d.getFont().deriveFont(affineTransform);
+                g2d.setFont(rotatedFont);
+                g2d.drawString(String.valueOf(captchaText.charAt(i)), 20 + (i * 25), 35);
+            }
+            g2d.dispose();
+            exchange.getResponseHeaders().set("Content-Type", "image/png");
+            exchange.sendResponseHeaders(200, 0);
+            ImageIO.write(image, "png", exchange.getResponseBody());
+            exchange.close();
         });
 
         server.setExecutor(null);
