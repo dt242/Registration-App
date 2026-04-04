@@ -269,6 +269,15 @@ public class Main {
                 String newFirstName = parsedData.get("firstName");
                 String newLastName = parsedData.get("lastName");
                 String newPassword = parsedData.get("password");
+                if (newFirstName == null || newFirstName.trim().isEmpty() ||
+                        newLastName == null || newLastName.trim().isEmpty()) {
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"First and Last names cannot be empty!\"}");
+                    return;
+                }
+                if (newPassword != null && !newPassword.trim().isEmpty() && newPassword.length() < 6) {
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"New password must be at least 6 characters!\"}");
+                    return;
+                }
                 try (Connection connection = DatabaseManager.getConnection()) {
                     if (newPassword != null && !newPassword.trim().isEmpty()) {
                         String sql = "UPDATE users SET first_name = ?, last_name = ?, password_hash = ? WHERE email = ?";
