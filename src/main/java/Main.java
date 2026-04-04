@@ -23,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
-    private static final java.util.Map<String, String> activeCaptchas = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> activeCaptchas = new ConcurrentHashMap<>();
+
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
@@ -34,13 +35,13 @@ public class Main {
                 exchange.sendResponseHeaders(302, -1);
                 exchange.close();
             } else {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
             }
         });
 
         server.createContext("/register", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/register")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
 
@@ -55,7 +56,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -74,7 +75,7 @@ public class Main {
                 String currentCaptchaId = getCookieValue(exchange, "captcha_id");
                 String realCaptchaText = activeCaptchas.get(currentCaptchaId);
                 if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
-                    sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Wrong text! Try again.");
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong text from the image! Try again.\"}");
                     return;
                 }
                 activeCaptchas.remove(currentCaptchaId);
@@ -85,14 +86,14 @@ public class Main {
                         preparedStatement.setString(1, email);
                         try (ResultSet resultSet = preparedStatement.executeQuery()) {
                             if (resultSet.next() && resultSet.getInt(1) > 0) {
-                                sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Email is already taken!");
+                                sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Email is already taken!\"}");
                                 return;
                             }
                         }
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    sendResponse(exchange, 500, "text/plain; charset=UTF-8", "Internal server error!");
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                     return;
                 }
 
@@ -106,20 +107,18 @@ public class Main {
                         preparedStatement.setString(3, email);
                         preparedStatement.setString(4, hashedPassword);
                         preparedStatement.executeUpdate();
-                        responseText = "Registration was successful! Hello, " + firstName;
+                        sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Registration was successful! Redirecting...\"}");
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    responseText = "Error!";
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                 }
-                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
-
             }
         });
 
         server.createContext("/login", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/login")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
 
@@ -134,7 +133,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -155,28 +154,26 @@ public class Main {
                         preparedStatement.setString(2, hashedPassword);
                         try (ResultSet resultSet = preparedStatement.executeQuery()) {
                             if (resultSet.next()) {
-                                String firstName = resultSet.getString("first_name");
                                 String sessionToken = UUID.randomUUID().toString();
                                 activeSessions.put(sessionToken, email);
                                 String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
                                 exchange.getResponseHeaders().add("Set-Cookie", cookieString);
-                                responseText = "Login was successful! Welcome back, " + firstName;
+                                sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
                             } else {
-                                responseText = "Login was unsuccessful!";
+                                sendResponse(exchange, 401, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong email or password!\"}");
                             }
                         }
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    responseText = "Error!";
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                 }
-                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
             }
         });
 
         server.createContext("/logout", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/logout")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             List<String> cookies = exchange.getRequestHeaders().get("Cookie");
@@ -198,7 +195,7 @@ public class Main {
 
         server.createContext("/profile", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/profile")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             String token = getCookieValue(exchange, "session_token");
@@ -227,7 +224,7 @@ public class Main {
                 }
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -272,7 +269,7 @@ public class Main {
 
         server.createContext("/captcha", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/captcha")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -297,7 +294,7 @@ public class Main {
                 int y1 = rnd.nextInt(height);
                 int x2 = rnd.nextInt(width);
                 int y2 = rnd.nextInt(height);
-                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.setStroke(new BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
                 g2d.drawLine(x1, y1, x2, y2);
             }
             for (int i = 0; i < 5; i++) {
@@ -305,10 +302,10 @@ public class Main {
                 int y1 = rnd.nextInt(height);
                 int ovalWidth = rnd.nextInt(width);
                 int ovalHeight = rnd.nextInt(height);
-                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
-                g2d.drawOval(x1, y1,ovalWidth, ovalHeight);
+                g2d.setStroke(new BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.drawOval(x1, y1, ovalWidth, ovalHeight);
             }
-            g2d.setStroke(new java.awt.BasicStroke(1.0f));
+            g2d.setStroke(new BasicStroke(1.0f));
             g2d.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 35));
             g2d.setColor(Color.DARK_GRAY);
             for (int i = 0; i < captchaText.length(); i++) {
@@ -378,5 +375,18 @@ public class Main {
         OutputStream os = exchange.getResponseBody();
         os.write(responseBytes);
         os.close();
+    }
+
+    private static void sendErrorPage(HttpExchange exchange, int statusCode, String message) throws IOException {
+        InputStream is = Main.class.getClassLoader().getResourceAsStream("html/error.html");
+        if (is == null) {
+            sendResponse(exchange, statusCode, "text/plain; charset=UTF-8", statusCode + " - " + message);
+            return;
+        }
+        String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        String finalHtml = htmlTemplate
+                .replace("{{statusCode}}", String.valueOf(statusCode))
+                .replace("{{errorMessage}}", message);
+        sendResponse(exchange, statusCode, "text/html; charset=UTF-8", finalHtml);
     }
 }

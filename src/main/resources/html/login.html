@@ -7,7 +7,7 @@
 <body>
 <h1>Login</h1>
 
-<form action="/login" method="POST">
+<form id="loginForm" action="/login" method="POST">
     <label>Email:</label><br>
     <input type="email" name="email" required><br><br>
 
@@ -16,5 +16,35 @@
 
     <button type="submit">Login</button>
 </form>
+
+<div id="notification"
+     style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const form = event.target;
+    const notifyBox = document.getElementById('notification');
+    const formData = new URLSearchParams(new FormData(form));
+    fetch('/login', { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => {
+        notifyBox.style.display = 'block';
+        if (data.success) {
+            notifyBox.style.backgroundColor = '#d4edda';
+            notifyBox.style.color = '#155724';
+            notifyBox.innerText = data.message;
+            setTimeout(() => window.location.href = '/profile', 1000);
+        } else {
+            notifyBox.style.backgroundColor = '#f8d7da';
+            notifyBox.style.color = '#721c24';
+            notifyBox.innerText = data.message;
+            form.querySelector('input[name="password"]').value = '';
+        }
+    })
+    .catch(err => console.error(err));
+});
+
+</script>
 </body>
 </html>
