@@ -162,7 +162,9 @@ public class Main {
             String token = getCookieValue(exchange, "session_token");
             String userEmail = (token != null) ? activeSessions.get(token) : null;
             if (userEmail == null) {
-                sendResponse(exchange, 401, "text/plain; charset=UTF-8", "Unauthorized! Login first.");
+                exchange.getResponseHeaders().add("Location", "/login");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
                 return;
             }
 
