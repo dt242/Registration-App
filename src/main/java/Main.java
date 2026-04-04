@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Main {
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
     private static final Map<String, String> activeCaptchas = new ConcurrentHashMap<>();
+
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
@@ -74,7 +75,7 @@ public class Main {
                 String currentCaptchaId = getCookieValue(exchange, "captcha_id");
                 String realCaptchaText = activeCaptchas.get(currentCaptchaId);
                 if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
-                    sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Wrong text! Try again.");
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong text from the image! Try again.\"}");
                     return;
                 }
                 activeCaptchas.remove(currentCaptchaId);
@@ -85,14 +86,14 @@ public class Main {
                         preparedStatement.setString(1, email);
                         try (ResultSet resultSet = preparedStatement.executeQuery()) {
                             if (resultSet.next() && resultSet.getInt(1) > 0) {
-                                sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Email is already taken!");
+                                sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Email is already taken!\"}");
                                 return;
                             }
                         }
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    sendResponse(exchange, 500, "text/plain; charset=UTF-8", "Internal server error!");
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                     return;
                 }
 
@@ -106,14 +107,12 @@ public class Main {
                         preparedStatement.setString(3, email);
                         preparedStatement.setString(4, hashedPassword);
                         preparedStatement.executeUpdate();
-                        responseText = "Registration was successful! Hello, " + firstName;
+                        sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Registration was successful! Redirecting...\"}");
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    responseText = "Error!";
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                 }
-                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
-
             }
         });
 
@@ -155,22 +154,20 @@ public class Main {
                         preparedStatement.setString(2, hashedPassword);
                         try (ResultSet resultSet = preparedStatement.executeQuery()) {
                             if (resultSet.next()) {
-                                String firstName = resultSet.getString("first_name");
                                 String sessionToken = UUID.randomUUID().toString();
                                 activeSessions.put(sessionToken, email);
                                 String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
                                 exchange.getResponseHeaders().add("Set-Cookie", cookieString);
-                                responseText = "Login was successful! Welcome back, " + firstName;
+                                sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
                             } else {
-                                responseText = "Login was unsuccessful!";
+                                sendResponse(exchange, 401, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong email or password!\"}");
                             }
                         }
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    responseText = "Error!";
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
                 }
-                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
             }
         });
 
@@ -306,7 +303,7 @@ public class Main {
                 int ovalWidth = rnd.nextInt(width);
                 int ovalHeight = rnd.nextInt(height);
                 g2d.setStroke(new BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
-                g2d.drawOval(x1, y1,ovalWidth, ovalHeight);
+                g2d.drawOval(x1, y1, ovalWidth, ovalHeight);
             }
             g2d.setStroke(new BasicStroke(1.0f));
             g2d.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 35));

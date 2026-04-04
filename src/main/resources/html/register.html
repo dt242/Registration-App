@@ -7,12 +7,12 @@
 <body>
 <h1>Registration</h1>
 
-<form action="/register" method="POST">
+<form id="registerForm" action="/register" method="POST">
     <label>First Name:</label><br>
-    <input type="text" name="firstName"><br><br>
+    <input type="text" name="firstName" required><br><br>
 
     <label>Last Name:</label><br>
-    <input type="text" name="lastName"><br><br>
+    <input type="text" name="lastName" required><br><br>
 
     <label>Email:</label><br>
     <input type="email" name="email" required><br><br>
@@ -22,10 +22,42 @@
 
     <hr>
     <label>Prove you are not a robot:</label><br>
-    <img src="/captcha" alt="CAPTCHA" style="border: 1px solid #ccc; margin-bottom: 10px;"><br>
+    <img id="captchaImage" src="/captcha" alt="CAPTCHA" style="border: 1px solid #ccc; margin-bottom: 10px;"><br>
     <input type="text" name="captcha" placeholder="Enter the text from the image" required><br><br>
 
     <button type="submit">Register</button>
 </form>
+
+<div id="notification"
+     style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    const form = event.target;
+    const notifyBox = document.getElementById('notification');
+    const formData = new URLSearchParams(new FormData(form));
+    fetch('/register', { method: 'POST', body: formData })
+    .then(response => response.json())
+    .then(data => {
+        notifyBox.style.display = 'block';
+        if (data.success) {
+            notifyBox.style.backgroundColor = '#d4edda';
+            notifyBox.style.color = '#155724';
+            notifyBox.innerText = data.message;
+            setTimeout(() => window.location.href = '/login', 1500);
+        } else {
+            notifyBox.style.backgroundColor = '#f8d7da';
+            notifyBox.style.color = '#721c24';
+            notifyBox.innerText = data.message;
+            document.getElementById('captchaImage').src = '/captcha?' + new Date().getTime();
+            form.querySelector('input[name="captcha"]').value = '';
+            form.querySelector('input[name="password"]').value = '';
+        }
+    })
+    .catch(err => console.error(err));
+});
+
+</script>
 </body>
 </html>
