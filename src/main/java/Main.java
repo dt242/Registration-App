@@ -32,6 +32,14 @@ public class Main {
         });
 
         server.createContext("/register", exchange -> {
+            String token = getCookieValue(exchange, "session_token");
+            if (token != null && activeSessions.containsKey(token)) {
+                exchange.getResponseHeaders().add("Location", "/profile");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+                return;
+            }
+
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
                 if (is == null) {
@@ -81,6 +89,14 @@ public class Main {
         });
 
         server.createContext("/login", exchange -> {
+            String token = getCookieValue(exchange, "session_token");
+            if (token != null && activeSessions.containsKey(token)) {
+                exchange.getResponseHeaders().add("Location", "/profile");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+                return;
+            }
+
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
                 if (is == null) {
