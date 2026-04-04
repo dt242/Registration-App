@@ -28,10 +28,22 @@ public class Main {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/", exchange -> {
-            sendResponse(exchange, 200, "text/plain; charset=UTF-8", "The server is working");
+            String path = exchange.getRequestURI().getPath();
+            if (path.equals("/")) {
+                exchange.getResponseHeaders().add("Location", "/login");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+            } else {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+            }
         });
 
         server.createContext("/register", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/register")) {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                return;
+            }
+
             String token = getCookieValue(exchange, "session_token");
             if (token != null && activeSessions.containsKey(token)) {
                 exchange.getResponseHeaders().add("Location", "/profile");
@@ -89,6 +101,11 @@ public class Main {
         });
 
         server.createContext("/login", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/login")) {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                return;
+            }
+
             String token = getCookieValue(exchange, "session_token");
             if (token != null && activeSessions.containsKey(token)) {
                 exchange.getResponseHeaders().add("Location", "/profile");
@@ -141,6 +158,10 @@ public class Main {
         });
 
         server.createContext("/logout", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/logout")) {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                return;
+            }
             List<String> cookies = exchange.getRequestHeaders().get("Cookie");
             if (cookies != null) {
                 for (String cookie : cookies) {
@@ -159,10 +180,16 @@ public class Main {
         });
 
         server.createContext("/profile", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/profile")) {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                return;
+            }
             String token = getCookieValue(exchange, "session_token");
             String userEmail = (token != null) ? activeSessions.get(token) : null;
             if (userEmail == null) {
-                sendResponse(exchange, 401, "text/plain; charset=UTF-8", "Unauthorized! Login first.");
+                exchange.getResponseHeaders().add("Location", "/login");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
                 return;
             }
 
@@ -227,6 +254,10 @@ public class Main {
         });
 
         server.createContext("/captcha", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/captcha")) {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                return;
+            }
             String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             StringBuilder captchaText = new StringBuilder();
             Random rnd = new Random();
