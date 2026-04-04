@@ -28,30 +28,18 @@ public class Main {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/", exchange -> {
-            String response = "The server is working";
-            exchange.sendResponseHeaders(200, response.length());
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
+            sendResponse(exchange, 200, "text/plain; charset=UTF-8", "The server is working");
         });
 
         server.createContext("/register", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
                 if (is == null) {
-                    String error = "404 - File not found!";
-                    exchange.sendResponseHeaders(404, error.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(error.getBytes());
-                    os.close();
+                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
                     return;
                 }
-                byte[] response = is.readAllBytes();
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                exchange.sendResponseHeaders(200, response.length);
-                OutputStream os = exchange.getResponseBody();
-                os.write(response);
-                os.close();
+                String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -66,11 +54,7 @@ public class Main {
                 String currentCaptchaId = getCookieValue(exchange, "captcha_id");
                 String realCaptchaText = activeCaptchas.get(currentCaptchaId);
                 if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
-                    String error = "Wrong text! Try again.";
-                    exchange.sendResponseHeaders(400, error.length());
-                    java.io.OutputStream os = exchange.getResponseBody();
-                    os.write(error.getBytes());
-                    os.close();
+                    sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Wrong text! Try again.");
                     return;
                 }
                 activeCaptchas.remove(currentCaptchaId);
@@ -91,10 +75,8 @@ public class Main {
                     e.printStackTrace();
                     responseText = "Error!";
                 }
-                exchange.sendResponseHeaders(200, responseText.length());
-                OutputStream os = exchange.getResponseBody();
-                os.write(responseText.getBytes());
-                os.close();
+                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
+
             }
         });
 
@@ -102,19 +84,11 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
                 if (is == null) {
-                    String error = "404 - File not found!";
-                    exchange.sendResponseHeaders(404, error.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(error.getBytes());
-                    os.close();
+                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
                     return;
                 }
-                byte[] response = is.readAllBytes();
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                exchange.sendResponseHeaders(200, response.length);
-                OutputStream os = exchange.getResponseBody();
-                os.write(response);
-                os.close();
+                String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -146,10 +120,7 @@ public class Main {
                     e.printStackTrace();
                     responseText = "Error!";
                 }
-                exchange.sendResponseHeaders(200, responseText.length());
-                OutputStream os = exchange.getResponseBody();
-                os.write(responseText.getBytes());
-                os.close();
+                sendResponse(exchange, 200, "text/plain; charset=UTF-8", responseText);
             }
         });
 
@@ -175,11 +146,7 @@ public class Main {
             String token = getCookieValue(exchange, "session_token");
             String userEmail = (token != null) ? activeSessions.get(token) : null;
             if (userEmail == null) {
-                String error = "Unauthorized! Login first.";
-                exchange.sendResponseHeaders(401, error.length());
-                OutputStream os = exchange.getResponseBody();
-                os.write(error.getBytes());
-                os.close();
+                sendResponse(exchange, 401, "text/plain; charset=UTF-8", "Unauthorized! Login first.");
                 return;
             }
 
@@ -200,11 +167,7 @@ public class Main {
                 }
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
                 if (is == null) {
-                    String error = "404 - File not found!";
-                    exchange.sendResponseHeaders(404, error.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(error.getBytes());
-                    os.close();
+                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
                     return;
                 }
                 String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -212,12 +175,7 @@ public class Main {
                         .replace("{{email}}", userEmail)
                         .replace("{{firstName}}", currentFirstName)
                         .replace("{{lastName}}", currentLastName);
-                byte[] responseBytes = finalHtml.getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
-                exchange.sendResponseHeaders(200, responseBytes.length);
-                OutputStream os = exchange.getResponseBody();
-                os.write(responseBytes);
-                os.close();
+                sendResponse(exchange, 200, "text/html; charset=UTF-8", finalHtml);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -248,12 +206,7 @@ public class Main {
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
-                String jsonResponse = "{\"success\": true}";
-                exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
-                exchange.sendResponseHeaders(200, jsonResponse.length());
-                OutputStream os = exchange.getResponseBody();
-                os.write(jsonResponse.getBytes(StandardCharsets.UTF_8));
-                os.close();
+                sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
             }
         });
 
@@ -352,5 +305,14 @@ public class Main {
             }
         }
         return null;
+    }
+
+    private static void sendResponse(HttpExchange exchange, int statusCode, String contentType, String responseText) throws IOException {
+        byte[] responseBytes = responseText.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.sendResponseHeaders(statusCode, responseBytes.length);
+        OutputStream os = exchange.getResponseBody();
+        os.write(responseBytes);
+        os.close();
     }
 }
