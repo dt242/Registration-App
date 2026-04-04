@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
-    private static final java.util.Map<String, String> activeCaptchas = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> activeCaptchas = new ConcurrentHashMap<>();
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
@@ -34,13 +34,13 @@ public class Main {
                 exchange.sendResponseHeaders(302, -1);
                 exchange.close();
             } else {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
             }
         });
 
         server.createContext("/register", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/register")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
 
@@ -55,7 +55,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -119,7 +119,7 @@ public class Main {
 
         server.createContext("/login", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/login")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
 
@@ -134,7 +134,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -176,7 +176,7 @@ public class Main {
 
         server.createContext("/logout", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/logout")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             List<String> cookies = exchange.getRequestHeaders().get("Cookie");
@@ -198,7 +198,7 @@ public class Main {
 
         server.createContext("/profile", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/profile")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             String token = getCookieValue(exchange, "session_token");
@@ -227,7 +227,7 @@ public class Main {
                 }
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
                 if (is == null) {
-                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - File not found!");
+                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
                     return;
                 }
                 String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -272,7 +272,7 @@ public class Main {
 
         server.createContext("/captcha", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/captcha")) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
                 return;
             }
             String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -297,7 +297,7 @@ public class Main {
                 int y1 = rnd.nextInt(height);
                 int x2 = rnd.nextInt(width);
                 int y2 = rnd.nextInt(height);
-                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.setStroke(new BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
                 g2d.drawLine(x1, y1, x2, y2);
             }
             for (int i = 0; i < 5; i++) {
@@ -305,10 +305,10 @@ public class Main {
                 int y1 = rnd.nextInt(height);
                 int ovalWidth = rnd.nextInt(width);
                 int ovalHeight = rnd.nextInt(height);
-                g2d.setStroke(new java.awt.BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
+                g2d.setStroke(new BasicStroke(rnd.nextFloat() * 1.5f + 0.5f));
                 g2d.drawOval(x1, y1,ovalWidth, ovalHeight);
             }
-            g2d.setStroke(new java.awt.BasicStroke(1.0f));
+            g2d.setStroke(new BasicStroke(1.0f));
             g2d.setFont(new Font("Arial", Font.BOLD | Font.ITALIC, 35));
             g2d.setColor(Color.DARK_GRAY);
             for (int i = 0; i < captchaText.length(); i++) {
@@ -378,5 +378,18 @@ public class Main {
         OutputStream os = exchange.getResponseBody();
         os.write(responseBytes);
         os.close();
+    }
+
+    private static void sendErrorPage(HttpExchange exchange, int statusCode, String message) throws IOException {
+        InputStream is = Main.class.getClassLoader().getResourceAsStream("html/error.html");
+        if (is == null) {
+            sendResponse(exchange, statusCode, "text/plain; charset=UTF-8", statusCode + " - " + message);
+            return;
+        }
+        String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        String finalHtml = htmlTemplate
+                .replace("{{statusCode}}", String.valueOf(statusCode))
+                .replace("{{errorMessage}}", message);
+        sendResponse(exchange, statusCode, "text/html; charset=UTF-8", finalHtml);
     }
 }
