@@ -5,6 +5,15 @@
     <title>My profile</title>
 </head>
 <body>
+
+<nav>
+    <a href="/profile" class="logo">SignApp</a>
+    <div class="nav-links">
+        <a href="/profile">Profile</a>
+        <a href="/logout" style="color: #e74c3c;">Logout</a>
+    </div>
+</nav>
+
 <h1>Welcome, {{firstName}}!</h1>
 <p>Your email is: <strong>{{email}}</strong></p>
 <hr>
@@ -24,12 +33,13 @@
     <button type="submit">Save Changes</button>
 </form>
 
-<div id="notification" style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
-
+<div id="notification"
+     style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
 <br>
-<form action="/logout" method="GET">
-    <button type="submit" style="color: red;">Logout</button>
-</form>
+
+<footer>
+    &copy; 2026 SignApp.
+</footer>
 
 <script>
         document.getElementById('profileForm').addEventListener('submit', function(event) {
@@ -58,6 +68,6 @@
                 console.error('Server communication error:', error);
             });
         });
-    </script>
+</script>
 </body>
 </html>
