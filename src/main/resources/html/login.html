@@ -5,8 +5,16 @@
     <title>Login</title>
 </head>
 <body>
-<h1>Login</h1>
 
+<nav>
+    <a href="/" class="logo">SignApp</a>
+    <div class="nav-links">
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+    </div>
+</nav>
+
+<h1>Login</h1>
 <form id="loginForm" action="/login" method="POST">
     <label>Email:</label><br>
     <input type="email" name="email" required><br><br>
@@ -19,6 +27,10 @@
 
 <div id="notification"
      style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+
+<footer>
+    &copy; 2026 SignApp.
+</footer>
 
 <script>
 document.getElementById('loginForm').addEventListener('submit', function(event) {
@@ -44,7 +56,6 @@ document.getElementById('loginForm').addEventListener('submit', function(event) 
     })
     .catch(err => console.error(err));
 });
-
 </script>
 </body>
 </html>

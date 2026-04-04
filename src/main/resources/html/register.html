@@ -5,8 +5,16 @@
     <title>Registration</title>
 </head>
 <body>
-<h1>Registration</h1>
 
+<nav>
+    <a href="/" class="logo">SignApp</a>
+    <div class="nav-links">
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+    </div>
+</nav>
+
+<h1>Registration</h1>
 <form id="registerForm" action="/register" method="POST">
     <label>First Name:</label><br>
     <input type="text" name="firstName" required><br><br>
@@ -30,6 +38,10 @@
 
 <div id="notification"
      style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+
+<footer>
+    &copy; 2026 SignApp.
+</footer>
 
 <script>
 document.getElementById('registerForm').addEventListener('submit', function(event) {
@@ -57,7 +69,6 @@ document.getElementById('registerForm').addEventListener('submit', function(even
     })
     .catch(err => console.error(err));
 });
-
 </script>
 </body>
 </html>
