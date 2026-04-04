@@ -28,7 +28,14 @@ public class Main {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/", exchange -> {
-            sendResponse(exchange, 200, "text/plain; charset=UTF-8", "The server is working");
+            String path = exchange.getRequestURI().getPath();
+            if (path.equals("/")) {
+                exchange.getResponseHeaders().add("Location", "/login");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+            } else {
+                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "404 - Page not found!");
+            }
         });
 
         server.createContext("/register", exchange -> {
