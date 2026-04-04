@@ -1,3 +1,4 @@
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import javax.imageio.ImageIO;
@@ -62,16 +63,7 @@ public class Main {
                 String rawPassword = parsedData.get("password");
 
                 String userCaptcha = parsedData.get("captcha");
-                String currentCaptchaId = null;
-                List<String> cookies = exchange.getRequestHeaders().get("Cookie");
-                if (cookies != null) {
-                    for (String cookie : cookies) {
-                        if (cookie.contains("captcha_id=")) {
-                            currentCaptchaId = cookie.split("captcha_id=")[1].split(";")[0];
-                            break;
-                        }
-                    }
-                }
+                String currentCaptchaId = getCookieValue(exchange, "captcha_id");
                 String realCaptchaText = activeCaptchas.get(currentCaptchaId);
                 if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
                     String error = "Wrong text! Try again.";
@@ -180,17 +172,8 @@ public class Main {
         });
 
         server.createContext("/profile", exchange -> {
-            List<String> cookies = exchange.getRequestHeaders().get("Cookie");
-            String userEmail = null;
-            if (cookies != null) {
-                for (String cookie : cookies) {
-                    if (cookie.contains("session_token=")) {
-                        String token = cookie.split("session_token=")[1].split(";")[0];
-                        userEmail = activeSessions.get(token);
-                        break;
-                    }
-                }
-            }
+            String token = getCookieValue(exchange, "session_token");
+            String userEmail = (token != null) ? activeSessions.get(token) : null;
             if (userEmail == null) {
                 String error = "Unauthorized! Login first.";
                 exchange.sendResponseHeaders(401, error.length());
@@ -357,5 +340,17 @@ public class Main {
         } catch (Exception e) {
             throw new RuntimeException("Error during encryption!", e);
         }
+    }
+
+    private static String getCookieValue(HttpExchange exchange, String cookieName) {
+        List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+        if (cookies != null) {
+            for (String cookie : cookies) {
+                if (cookie.contains(cookieName + "=")) {
+                    return cookie.split(cookieName + "=")[1].split(";")[0];
+                }
+            }
+        }
+        return null;
     }
 }
