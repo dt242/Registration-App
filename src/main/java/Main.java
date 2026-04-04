@@ -8,7 +8,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -126,7 +125,6 @@ public class Main {
                 }
 
                 String hashedPassword = hashPassword(rawPassword);
-                String responseText;
                 try (Connection connection = DatabaseManager.getConnection()) {
                     String sql = "INSERT INTO users (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)";
                     try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
@@ -174,7 +172,6 @@ public class Main {
                 String email = parsedData.get("email");
                 String rawPassword = parsedData.get("password");
                 String hashedPassword = hashPassword(rawPassword);
-                String responseText;
                 try (Connection connection = DatabaseManager.getConnection()) {
                     String sql = "SELECT first_name FROM users WHERE email = ? AND password_hash = ?";
                     try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
@@ -297,10 +294,11 @@ public class Main {
                             preparedStatement.executeUpdate();
                         }
                     }
+                    sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
                 } catch (SQLException e) {
                     e.printStackTrace();
+                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Database error!\"}");
                 }
-                sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
             }
         });
 
@@ -363,7 +361,7 @@ public class Main {
         server.start();
     }
 
-    private static Map<String, String> parseFormData(String formData) throws UnsupportedEncodingException {
+    private static Map<String, String> parseFormData(String formData) {
         Map<String, String> map = new HashMap<>();
         String[] pairs = formData.split("&");
         for (String pair : pairs) {
