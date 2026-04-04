@@ -1,0 +1,216 @@
+:root {
+    --bg-page: #FAF9F6;
+    --card-bg: #FFFFFF;
+    --text-light: #FFFFFF;
+    --dark-gray: #1E2022;
+    --accent: #00ADB5;
+    --accent-hover: #008C93;
+    --red-message: #e74c3c;
+    --gray-message: #555;
+    --gray-borders: #ccc;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background-color: var(--bg-page);
+    color: var(--dark-gray);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+header {
+    background-color: var(--dark-gray);
+    color: var(--text-light);
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.logo {
+    font-size: 24px;
+    text-decoration: none;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+}
+
+.logo i {
+    color: var(--accent);
+    margin-right: 8px;
+    font-size: 28px;
+}
+
+.brand-text {
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.brand-text strong {
+    font-weight: 800;
+}
+
+.nav-links a {
+    color: var(--text-light);
+    text-decoration: none;
+    margin-left: 20px;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: var(--accent);
+}
+
+.nav-links .btn-logout {
+    color: var(--red-message);
+}
+
+.nav-links .btn-logout:hover {
+    color: #c0392b;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.card {
+    background: var(--card-bg);
+    padding: 2.5rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+    width: 100%;
+    max-width: 400px;
+}
+
+.card h1 {
+    margin-top: 0;
+    color: var(--dark-gray);
+    text-align: center;
+}
+
+label {
+    font-weight: 600;
+    color: var(--dark-gray);
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0 20px;
+    border: 1px solid var(--gray-borders);
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 15px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--gray-borders);
+    margin: 20px 0;
+}
+
+.captcha-img {
+    border: 1px solid var(--gray-borders);
+    border-radius: 5px;
+    margin: 10px 0;
+    display: block;
+}
+
+button, .btn-primary {
+    background-color: var(--accent);
+    color: var(--text-light);
+    padding: 12px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background-color 0.3s, transform 0.1s;
+    display: inline-block;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+button:hover, .btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+button:active, .btn-primary:active {
+    transform: scale(0.98);
+}
+
+#notification {
+    display: none;
+    padding: 10px;
+    margin-top: 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.welcome-title {
+    margin-bottom: 5px;
+}
+
+.profile-email {
+    text-align: center;
+    color: var(--gray-message);
+    margin-top: 0;
+}
+
+.section-title {
+    text-align: center;
+    color: var(--dark-gray);
+}
+
+.error-card {
+    text-align: center;
+    padding: 40px;
+}
+
+.card .error-code {
+    font-size: 60px;
+    color: var(--red-message);
+    margin: 0;
+}
+
+.error-title {
+    color: var(--dark-gray);
+}
+
+.error-message {
+    font-size: 18px;
+    color: var(--gray-message);
+    margin-bottom: 30px;
+}
+
+footer {
+    background-color: var(--dark-gray);
+    color: var(--gray-borders);
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 14px;
+}
