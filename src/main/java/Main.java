@@ -66,7 +66,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
                 if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
+                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -80,8 +80,26 @@ public class Main {
                 String lastName = parsedData.get("lastName");
                 String email = parsedData.get("email");
                 String rawPassword = parsedData.get("password");
-
                 String userCaptcha = parsedData.get("captcha");
+
+                if (firstName == null || firstName.trim().isEmpty() ||
+                        lastName == null || lastName.trim().isEmpty() ||
+                        email == null || email.trim().isEmpty() ||
+                        rawPassword == null || rawPassword.trim().isEmpty() ||
+                        userCaptcha == null || userCaptcha.trim().isEmpty()) {
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"All fields are required!\"}");
+                    return;
+                }
+                String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$";
+                if (!email.matches(emailRegex)) {
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Please, enter a valid email!\"}");
+                    return;
+                }
+                if (rawPassword.length() < 6) {
+                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Password must be at least 6 characters!\"}");
+                    return;
+                }
+
                 String currentCaptchaId = getCookieValue(exchange, "captcha_id");
                 String realCaptchaText = activeCaptchas.get(currentCaptchaId);
                 if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
@@ -143,7 +161,7 @@ public class Main {
             if ("GET".equals(exchange.getRequestMethod())) {
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
                 if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
+                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
                     return;
                 }
                 String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -234,7 +252,7 @@ public class Main {
                 }
                 InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
                 if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please contact administration.");
+                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
                     return;
                 }
                 String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
