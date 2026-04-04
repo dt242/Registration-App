@@ -2,18 +2,30 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>An Error Occurred</title>
+    <title>Error - SignApp</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
-<body style="text-align: center; padding-top: 50px; font-family: Arial, sans-serif;">
+<body>
 
-<h1 style="font-size: 50px; color: #d9534f;">{{statusCode}}</h1>
-<h2>Oops! Something went wrong.</h2>
-<p style="font-size: 20px;">{{errorMessage}}</p>
+<header>
+    <nav>
+        <a href="/" class="logo">
+            <i class="fa-solid fa-fingerprint"></i>
+            <span class="brand-text"><strong>Sign</strong>App</span>
+        </a>
+    </nav>
+</header>
 
-<br><br>
-<a href="/"
-   style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Go
-    Back Home</a>
+<main>
+    <div class="card error-card">
+        <h1 class="error-code">{{statusCode}}</h1>
+        <h2 class="error-title">Oops! Something went wrong.</h2>
+        <p class="error-message">{{errorMessage}}</p>
+
+        <a href="/" class="btn-primary">Go Back Home</a>
+    </div>
+</main>
 
 <footer>
     &copy; 2026 SignApp.
