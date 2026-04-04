@@ -79,6 +79,23 @@ public class Main {
                 }
                 activeCaptchas.remove(currentCaptchaId);
 
+                try (Connection connection = DatabaseManager.getConnection()) {
+                    String checkSql = "SELECT COUNT(*) FROM users WHERE email = ?";
+                    try (PreparedStatement preparedStatement = connection.prepareStatement(checkSql)) {
+                        preparedStatement.setString(1, email);
+                        try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                            if (resultSet.next() && resultSet.getInt(1) > 0) {
+                                sendResponse(exchange, 400, "text/plain; charset=UTF-8", "Email is already taken!");
+                                return;
+                            }
+                        }
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "text/plain; charset=UTF-8", "Internal server error!");
+                    return;
+                }
+
                 String hashedPassword = hashPassword(rawPassword);
                 String responseText;
                 try (Connection connection = DatabaseManager.getConnection()) {
