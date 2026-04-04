@@ -2,42 +2,52 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Registration</title>
+    <title>Registration - SignApp</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-<nav>
-    <a href="/" class="logo">SignApp</a>
-    <div class="nav-links">
-        <a href="/login">Login</a>
-        <a href="/register">Register</a>
+<header>
+    <nav>
+        <a href="/" class="logo">
+            <i class="fa-solid fa-fingerprint"></i>
+            <span class="brand-text"><strong>Sign</strong>App</span>
+        </a>
+        <div class="nav-links">
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+        </div>
+    </nav>
+</header>
+
+<main>
+    <div class="card">
+        <h1>Registration</h1>
+        <form id="registerForm" action="/register" method="POST">
+            <label>First Name:</label>
+            <input type="text" name="firstName" required>
+
+            <label>Last Name:</label>
+            <input type="text" name="lastName" required>
+
+            <label>Email:</label>
+            <input type="email" name="email" required>
+
+            <label>Password:</label>
+            <input type="password" name="password" required>
+
+            <hr>
+            <label>Prove you are not a robot:</label><br>
+            <img id="captchaImage" src="/captcha" alt="CAPTCHA" class="captcha-img">
+            <input type="text" name="captcha" placeholder="Enter the text from the image" required>
+
+            <button type="submit">Register</button>
+        </form>
+
+        <div id="notification"></div>
     </div>
-</nav>
-
-<h1>Registration</h1>
-<form id="registerForm" action="/register" method="POST">
-    <label>First Name:</label><br>
-    <input type="text" name="firstName" required><br><br>
-
-    <label>Last Name:</label><br>
-    <input type="text" name="lastName" required><br><br>
-
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-
-    <label>Password:</label><br>
-    <input type="password" name="password" required><br><br>
-
-    <hr>
-    <label>Prove you are not a robot:</label><br>
-    <img id="captchaImage" src="/captcha" alt="CAPTCHA" style="border: 1px solid #ccc; margin-bottom: 10px;"><br>
-    <input type="text" name="captcha" placeholder="Enter the text from the image" required><br><br>
-
-    <button type="submit">Register</button>
-</form>
-
-<div id="notification"
-     style="display:none; padding: 10px; margin-top: 15px; border-radius: 5px; font-weight: bold;"></div>
+</main>
 
 <footer>
     &copy; 2026 SignApp.
