@@ -28,13 +28,14 @@ public class Main {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 
         server.createContext("/style.css", exchange -> {
-            InputStream is = Main.class.getClassLoader().getResourceAsStream("css/style.css");
-            if (is == null) {
-                sendResponse(exchange, 404, "text/plain; charset=UTF-8", "CSS not found");
-                return;
+            try (InputStream is = Main.class.getClassLoader().getResourceAsStream("css/style.css")) {
+                if (is == null) {
+                    sendResponse(exchange, 404, "text/plain; charset=UTF-8", "CSS not found");
+                    return;
+                }
+                String cssContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                sendResponse(exchange, 200, "text/css; charset=UTF-8", cssContent);
             }
-            String cssContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            sendResponse(exchange, 200, "text/css; charset=UTF-8", cssContent);
         });
 
         server.createContext("/", exchange -> {
@@ -63,13 +64,14 @@ public class Main {
             }
 
             if ("GET".equals(exchange.getRequestMethod())) {
-                InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html");
-                if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
-                    return;
+                try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/register.html")) {
+                    if (is == null) {
+                        sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
+                        return;
+                    }
+                    String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
                 }
-                String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -157,13 +159,14 @@ public class Main {
             }
 
             if ("GET".equals(exchange.getRequestMethod())) {
-                InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html");
-                if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
-                    return;
+                try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html")) {
+                    if (is == null) {
+                        sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
+                        return;
+                    }
+                    String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
                 }
-                String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -247,17 +250,18 @@ public class Main {
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
-                InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html");
-                if (is == null) {
-                    sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
-                    return;
+                try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html")) {
+                    if (is == null) {
+                        sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
+                        return;
+                    }
+                    String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    String finalHtml = htmlTemplate
+                            .replace("{{email}}", userEmail)
+                            .replace("{{firstName}}", currentFirstName)
+                            .replace("{{lastName}}", currentLastName);
+                    sendResponse(exchange, 200, "text/html; charset=UTF-8", finalHtml);
                 }
-                String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                String finalHtml = htmlTemplate
-                        .replace("{{email}}", userEmail)
-                        .replace("{{firstName}}", currentFirstName)
-                        .replace("{{lastName}}", currentLastName);
-                sendResponse(exchange, 200, "text/html; charset=UTF-8", finalHtml);
 
             } else if ("POST".equals(exchange.getRequestMethod())) {
                 InputStream is = exchange.getRequestBody();
@@ -406,6 +410,11 @@ public class Main {
     private static void sendResponse(HttpExchange exchange, int statusCode, String contentType, String responseText) throws IOException {
         byte[] responseBytes = responseText.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", contentType);
+        if (contentType.contains("text/html") || contentType.contains("application/json")) {
+            exchange.getResponseHeaders().set("Cache-Control", "no-cache, no-store, must-revalidate");
+            exchange.getResponseHeaders().set("Pragma", "no-cache");
+            exchange.getResponseHeaders().set("Expires", "0");
+        }
         exchange.sendResponseHeaders(statusCode, responseBytes.length);
         OutputStream os = exchange.getResponseBody();
         os.write(responseBytes);
@@ -413,15 +422,16 @@ public class Main {
     }
 
     private static void sendErrorPage(HttpExchange exchange, int statusCode, String message) throws IOException {
-        InputStream is = Main.class.getClassLoader().getResourceAsStream("html/error.html");
-        if (is == null) {
-            sendResponse(exchange, statusCode, "text/plain; charset=UTF-8", statusCode + " - " + message);
-            return;
+        try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/error.html")) {
+            if (is == null) {
+                sendResponse(exchange, statusCode, "text/plain; charset=UTF-8", statusCode + " - " + message);
+                return;
+            }
+            String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            String finalHtml = htmlTemplate
+                    .replace("{{statusCode}}", String.valueOf(statusCode))
+                    .replace("{{errorMessage}}", message);
+            sendResponse(exchange, statusCode, "text/html; charset=UTF-8", finalHtml);
         }
-        String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        String finalHtml = htmlTemplate
-                .replace("{{statusCode}}", String.valueOf(statusCode))
-                .replace("{{errorMessage}}", message);
-        sendResponse(exchange, statusCode, "text/html; charset=UTF-8", finalHtml);
     }
 }
