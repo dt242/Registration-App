@@ -46,52 +46,7 @@ public class Main {
         });
 
         server.createContext("/register", new handler.RegisterHandler());
-
-        server.createContext("/login", exchange -> {
-            if (!exchange.getRequestURI().getPath().equals("/login")) {
-                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
-                return;
-            }
-
-            String token = getCookieValue(exchange, "session_token");
-            if (SessionManager.isSessionValid(token)) {
-                exchange.getResponseHeaders().add("Location", "/profile");
-                exchange.sendResponseHeaders(302, -1);
-                exchange.close();
-                return;
-            }
-
-            if ("GET".equals(exchange.getRequestMethod())) {
-                try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html")) {
-                    if (is == null) {
-                        sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
-                        return;
-                    }
-                    String htmlContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    sendResponse(exchange, 200, "text/html; charset=UTF-8", htmlContent);
-                }
-
-            } else if ("POST".equals(exchange.getRequestMethod())) {
-                InputStream is = exchange.getRequestBody();
-                String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                Map<String, String> parsedData = parseFormData(rawFormData);
-                String email = parsedData.get("email");
-                String rawPassword = parsedData.get("password");
-                String hashedPassword = hashPassword(rawPassword);
-                try {
-                    if (UserRepository.validateCredentials(email, hashedPassword)) {
-                        String cookieString = "session_token=" + SessionManager.createSession(email) + "; HttpOnly; Path=/";
-                        exchange.getResponseHeaders().add("Set-Cookie", cookieString);
-                        sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
-                    } else {
-                        sendResponse(exchange, 401, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong email or password!\"}");
-                    }
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
-                }
-            }
-        });
+        server.createContext("/login", new handler.LoginHandler());
 
         server.createContext("/logout", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/logout")) {
