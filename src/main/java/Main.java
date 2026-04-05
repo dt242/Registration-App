@@ -1,6 +1,6 @@
 import com.sun.net.httpserver.HttpServer;
 import core.SessionManager;
-import model.User;
+import handler.ProfileHandler;
 import repository.UserRepository;
 
 import javax.imageio.ImageIO;
@@ -193,71 +193,7 @@ public class Main {
             exchange.close();
         });
 
-        server.createContext("/profile", exchange -> {
-            if (!exchange.getRequestURI().getPath().equals("/profile")) {
-                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
-                return;
-            }
-            String token = getCookieValue(exchange, "session_token");
-            String userEmail = SessionManager.getEmailByToken(token);
-            if (userEmail == null) {
-                exchange.getResponseHeaders().add("Location", "/login");
-                exchange.sendResponseHeaders(302, -1);
-                exchange.close();
-                return;
-            }
-
-            if ("GET".equals(exchange.getRequestMethod())) {
-                User user;
-                try {
-                    user = UserRepository.getUserByEmail(userEmail);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                    sendErrorPage(exchange, 500, "Database error!");
-                    return;
-                }
-                if (user == null) {
-                    sendErrorPage(exchange, 404, "User not found in database!");
-                    return;
-                }
-                try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html")) {
-                    if (is == null) {
-                        sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
-                        return;
-                    }
-                    String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    String finalHtml = htmlTemplate
-                            .replace("{{email}}", userEmail)
-                            .replace("{{firstName}}", user.getFirstName())
-                            .replace("{{lastName}}", user.getLastName());
-                    sendResponse(exchange, 200, "text/html; charset=UTF-8", finalHtml);
-                }
-
-            } else if ("POST".equals(exchange.getRequestMethod())) {
-                InputStream is = exchange.getRequestBody();
-                String rawFormData = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                Map<String, String> parsedData = parseFormData(rawFormData);
-                String newFirstName = parsedData.get("firstName");
-                String newLastName = parsedData.get("lastName");
-                String newPassword = parsedData.get("password");
-                if (newFirstName == null || newFirstName.trim().isEmpty() ||
-                        newLastName == null || newLastName.trim().isEmpty()) {
-                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"First and Last names cannot be empty!\"}");
-                    return;
-                }
-                if (newPassword != null && !newPassword.trim().isEmpty() && newPassword.length() < 6) {
-                    sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"New password must be at least 6 characters!\"}");
-                    return;
-                }
-                try {
-                    UserRepository.updateProfile(userEmail, newFirstName, newLastName, newPassword);
-                    sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                    sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Database error!\"}");
-                }
-            }
-        });
+        server.createContext("/profile", new ProfileHandler());
 
         server.createContext("/captcha", exchange -> {
             if (!exchange.getRequestURI().getPath().equals("/captcha")) {
