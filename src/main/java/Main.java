@@ -1,5 +1,5 @@
-import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import config.DatabaseManager;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -7,11 +7,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -19,6 +16,9 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static util.HttpUtils.*;
+import static util.SecurityUtils.hashPassword;
 
 public class Main {
     private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
@@ -159,7 +159,7 @@ public class Main {
             }
 
             if ("GET".equals(exchange.getRequestMethod())) {
-                try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html")) {
+                try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/login.html")) {
                     if (is == null) {
                         sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
                         return;
@@ -250,7 +250,7 @@ public class Main {
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
-                try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html")) {
+                try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html")) {
                     if (is == null) {
                         sendErrorPage(exchange, 404, "System file not found! Please, contact administration.");
                         return;
@@ -363,75 +363,5 @@ public class Main {
 
         server.setExecutor(null);
         server.start();
-    }
-
-    private static Map<String, String> parseFormData(String formData) {
-        Map<String, String> map = new HashMap<>();
-        String[] pairs = formData.split("&");
-        for (String pair : pairs) {
-            String[] keyValue = pair.split("=");
-            if (keyValue.length == 2) {
-                String key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
-                String value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
-                map.put(key, value);
-            }
-        }
-        return map;
-    }
-
-    private static String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (Exception e) {
-            throw new RuntimeException("Error during encryption!", e);
-        }
-    }
-
-    private static String getCookieValue(HttpExchange exchange, String cookieName) {
-        List<String> cookies = exchange.getRequestHeaders().get("Cookie");
-        if (cookies != null) {
-            for (String cookie : cookies) {
-                if (cookie.contains(cookieName + "=")) {
-                    return cookie.split(cookieName + "=")[1].split(";")[0];
-                }
-            }
-        }
-        return null;
-    }
-
-    private static void sendResponse(HttpExchange exchange, int statusCode, String contentType, String responseText) throws IOException {
-        byte[] responseBytes = responseText.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", contentType);
-        if (contentType.contains("text/html") || contentType.contains("application/json")) {
-            exchange.getResponseHeaders().set("Cache-Control", "no-cache, no-store, must-revalidate");
-            exchange.getResponseHeaders().set("Pragma", "no-cache");
-            exchange.getResponseHeaders().set("Expires", "0");
-        }
-        exchange.sendResponseHeaders(statusCode, responseBytes.length);
-        OutputStream os = exchange.getResponseBody();
-        os.write(responseBytes);
-        os.close();
-    }
-
-    private static void sendErrorPage(HttpExchange exchange, int statusCode, String message) throws IOException {
-        try(InputStream is = Main.class.getClassLoader().getResourceAsStream("html/error.html")) {
-            if (is == null) {
-                sendResponse(exchange, statusCode, "text/plain; charset=UTF-8", statusCode + " - " + message);
-                return;
-            }
-            String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            String finalHtml = htmlTemplate
-                    .replace("{{statusCode}}", String.valueOf(statusCode))
-                    .replace("{{errorMessage}}", message);
-            sendResponse(exchange, statusCode, "text/html; charset=UTF-8", finalHtml);
-        }
     }
 }
