@@ -6,6 +6,7 @@ import core.SessionManager;
 import model.User;
 import repository.UserRepository;
 import util.HttpUtils;
+import util.SecurityUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -81,8 +82,12 @@ public class ProfileHandler implements HttpHandler {
             HttpUtils.sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"New password must be at least 6 characters!\"}");
             return;
         }
+        String hashedNewPassword = null;
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            hashedNewPassword = SecurityUtils.hashPassword(newPassword);
+        }
         try {
-            UserRepository.updateProfile(userEmail, newFirstName, newLastName, newPassword);
+            UserRepository.updateProfile(userEmail, newFirstName, newLastName, hashedNewPassword);
             HttpUtils.sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
         } catch (SQLException e) {
             e.printStackTrace();
