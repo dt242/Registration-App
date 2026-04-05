@@ -1,4 +1,5 @@
 import com.sun.net.httpserver.HttpServer;
+import core.SessionManager;
 import model.User;
 import repository.UserRepository;
 
@@ -13,14 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static util.HttpUtils.*;
 import static util.SecurityUtils.hashPassword;
 
 public class Main {
-    private static final Map<String, String> activeSessions = new ConcurrentHashMap<>();
-    private static final Map<String, String> activeCaptchas = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
@@ -54,7 +52,7 @@ public class Main {
             }
 
             String token = getCookieValue(exchange, "session_token");
-            if (token != null && activeSessions.containsKey(token)) {
+            if (SessionManager.isSessionValid(token)) {
                 exchange.getResponseHeaders().add("Location", "/profile");
                 exchange.sendResponseHeaders(302, -1);
                 exchange.close();
@@ -100,12 +98,10 @@ public class Main {
                 }
 
                 String currentCaptchaId = getCookieValue(exchange, "captcha_id");
-                String realCaptchaText = activeCaptchas.get(currentCaptchaId);
-                if (realCaptchaText == null || !realCaptchaText.equalsIgnoreCase(userCaptcha)) {
+                if (!SessionManager.validateAndConsumeCaptcha(currentCaptchaId, userCaptcha)) {
                     sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong text from the image! Try again.\"}");
                     return;
                 }
-                activeCaptchas.remove(currentCaptchaId);
 
                 try {
                     if (UserRepository.emailExists(email)) {
@@ -136,7 +132,7 @@ public class Main {
             }
 
             String token = getCookieValue(exchange, "session_token");
-            if (token != null && activeSessions.containsKey(token)) {
+            if (SessionManager.isSessionValid(token)) {
                 exchange.getResponseHeaders().add("Location", "/profile");
                 exchange.sendResponseHeaders(302, -1);
                 exchange.close();
@@ -162,9 +158,7 @@ public class Main {
                 String hashedPassword = hashPassword(rawPassword);
                 try {
                     if (UserRepository.validateCredentials(email, hashedPassword)) {
-                        String sessionToken = UUID.randomUUID().toString();
-                        activeSessions.put(sessionToken, email);
-                        String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
+                        String cookieString = "session_token=" + SessionManager.createSession(email) + "; HttpOnly; Path=/";
                         exchange.getResponseHeaders().add("Set-Cookie", cookieString);
                         sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
                     } else {
@@ -187,7 +181,7 @@ public class Main {
                 for (String cookie : cookies) {
                     if (cookie.contains("session_token=")) {
                         String token = cookie.split("session_token=")[1].split(";")[0];
-                        activeSessions.remove(token);
+                        SessionManager.invalidateSession(token);
                         break;
                     }
                 }
@@ -205,7 +199,7 @@ public class Main {
                 return;
             }
             String token = getCookieValue(exchange, "session_token");
-            String userEmail = (token != null) ? activeSessions.get(token) : null;
+            String userEmail = SessionManager.getEmailByToken(token);
             if (userEmail == null) {
                 exchange.getResponseHeaders().add("Location", "/login");
                 exchange.sendResponseHeaders(302, -1);
@@ -276,9 +270,7 @@ public class Main {
             for (int i = 0; i < 5; i++) {
                 captchaText.append(chars.charAt(rnd.nextInt(chars.length())));
             }
-            String captchaId = UUID.randomUUID().toString();
-            activeCaptchas.put(captchaId, captchaText.toString());
-            String cookieString = "captcha_id=" + captchaId + "; HttpOnly; Path=/";
+            String cookieString = "captcha_id=" + SessionManager.saveCaptcha(captchaText.toString()) + "; HttpOnly; Path=/";
             exchange.getResponseHeaders().add("Set-Cookie", cookieString);
             int width = 160;
             int height = 50;
