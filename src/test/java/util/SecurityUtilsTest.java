@@ -38,6 +38,6 @@ class SecurityUtilsTest {
     void testHashPassword_NullInput() {
         assertThrows(RuntimeException.class, () -> {
             SecurityUtils.hashPassword(null);
-        }, "Подаването на null трябва да хвърли RuntimeException според логиката на метода");
+        });
     }
 }
