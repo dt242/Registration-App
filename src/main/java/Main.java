@@ -1,5 +1,6 @@
 import com.sun.net.httpserver.HttpServer;
-import config.DatabaseManager;
+import model.User;
+import repository.UserRepository;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -9,9 +10,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.List;
@@ -109,16 +107,10 @@ public class Main {
                 }
                 activeCaptchas.remove(currentCaptchaId);
 
-                try (Connection connection = DatabaseManager.getConnection()) {
-                    String checkSql = "SELECT COUNT(*) FROM users WHERE email = ?";
-                    try (PreparedStatement preparedStatement = connection.prepareStatement(checkSql)) {
-                        preparedStatement.setString(1, email);
-                        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                            if (resultSet.next() && resultSet.getInt(1) > 0) {
-                                sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Email is already taken!\"}");
-                                return;
-                            }
-                        }
+                try {
+                    if (UserRepository.emailExists(email)) {
+                        sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Email is already taken!\"}");
+                        return;
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -127,16 +119,9 @@ public class Main {
                 }
 
                 String hashedPassword = hashPassword(rawPassword);
-                try (Connection connection = DatabaseManager.getConnection()) {
-                    String sql = "INSERT INTO users (first_name, last_name, email, password_hash) VALUES (?, ?, ?, ?)";
-                    try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                        preparedStatement.setString(1, firstName);
-                        preparedStatement.setString(2, lastName);
-                        preparedStatement.setString(3, email);
-                        preparedStatement.setString(4, hashedPassword);
-                        preparedStatement.executeUpdate();
-                        sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Registration was successful! Redirecting...\"}");
-                    }
+                try {
+                    UserRepository.createUser(firstName,lastName, email, hashedPassword);
+                    sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Registration was successful! Redirecting...\"}");
                 } catch (SQLException e) {
                     e.printStackTrace();
                     sendResponse(exchange, 500, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Server error!\"}");
@@ -175,22 +160,15 @@ public class Main {
                 String email = parsedData.get("email");
                 String rawPassword = parsedData.get("password");
                 String hashedPassword = hashPassword(rawPassword);
-                try (Connection connection = DatabaseManager.getConnection()) {
-                    String sql = "SELECT first_name FROM users WHERE email = ? AND password_hash = ?";
-                    try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                        preparedStatement.setString(1, email);
-                        preparedStatement.setString(2, hashedPassword);
-                        try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                            if (resultSet.next()) {
-                                String sessionToken = UUID.randomUUID().toString();
-                                activeSessions.put(sessionToken, email);
-                                String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
-                                exchange.getResponseHeaders().add("Set-Cookie", cookieString);
-                                sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
-                            } else {
-                                sendResponse(exchange, 401, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong email or password!\"}");
-                            }
-                        }
+                try {
+                    if (UserRepository.validateCredentials(email, hashedPassword)) {
+                        String sessionToken = UUID.randomUUID().toString();
+                        activeSessions.put(sessionToken, email);
+                        String cookieString = "session_token=" + sessionToken + "; HttpOnly; Path=/";
+                        exchange.getResponseHeaders().add("Set-Cookie", cookieString);
+                        sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true, \"message\": \"Login was successful!\"}");
+                    } else {
+                        sendResponse(exchange, 401, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"Wrong email or password!\"}");
                     }
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -236,19 +214,17 @@ public class Main {
             }
 
             if ("GET".equals(exchange.getRequestMethod())) {
-                String currentFirstName = "";
-                String currentLastName = "";
-                try (Connection connection = DatabaseManager.getConnection();
-                     PreparedStatement preparedStatement = connection.prepareStatement("SELECT first_name, last_name FROM users WHERE email = ?")) {
-                    preparedStatement.setString(1, userEmail);
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (resultSet.next()) {
-                            currentFirstName = resultSet.getString("first_name");
-                            currentLastName = resultSet.getString("last_name");
-                        }
-                    }
+                User user;
+                try {
+                    user = UserRepository.getUserByEmail(userEmail);
                 } catch (SQLException e) {
                     e.printStackTrace();
+                    sendErrorPage(exchange, 500, "Database error!");
+                    return;
+                }
+                if (user == null) {
+                    sendErrorPage(exchange, 404, "User not found in database!");
+                    return;
                 }
                 try (InputStream is = Main.class.getClassLoader().getResourceAsStream("html/profile.html")) {
                     if (is == null) {
@@ -258,8 +234,8 @@ public class Main {
                     String htmlTemplate = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                     String finalHtml = htmlTemplate
                             .replace("{{email}}", userEmail)
-                            .replace("{{firstName}}", currentFirstName)
-                            .replace("{{lastName}}", currentLastName);
+                            .replace("{{firstName}}", user.getFirstName())
+                            .replace("{{lastName}}", user.getLastName());
                     sendResponse(exchange, 200, "text/html; charset=UTF-8", finalHtml);
                 }
 
@@ -279,25 +255,8 @@ public class Main {
                     sendResponse(exchange, 400, "application/json; charset=UTF-8", "{\"success\": false, \"message\": \"New password must be at least 6 characters!\"}");
                     return;
                 }
-                try (Connection connection = DatabaseManager.getConnection()) {
-                    if (newPassword != null && !newPassword.trim().isEmpty()) {
-                        String sql = "UPDATE users SET first_name = ?, last_name = ?, password_hash = ? WHERE email = ?";
-                        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                            preparedStatement.setString(1, newFirstName);
-                            preparedStatement.setString(2, newLastName);
-                            preparedStatement.setString(3, hashPassword(newPassword));
-                            preparedStatement.setString(4, userEmail);
-                            preparedStatement.executeUpdate();
-                        }
-                    } else {
-                        String sql = "UPDATE users SET first_name = ?, last_name = ? WHERE email = ?";
-                        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                            preparedStatement.setString(1, newFirstName);
-                            preparedStatement.setString(2, newLastName);
-                            preparedStatement.setString(3, userEmail);
-                            preparedStatement.executeUpdate();
-                        }
-                    }
+                try {
+                    UserRepository.updateProfile(userEmail, newFirstName, newLastName, newPassword);
                     sendResponse(exchange, 200, "application/json; charset=UTF-8", "{\"success\": true}");
                 } catch (SQLException e) {
                     e.printStackTrace();
