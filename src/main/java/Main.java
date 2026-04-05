@@ -1,6 +1,9 @@
 import com.sun.net.httpserver.HttpServer;
 import core.SessionManager;
+import handler.LoginHandler;
+import handler.LogoutHandler;
 import handler.ProfileHandler;
+import handler.RegisterHandler;
 import repository.UserRepository;
 
 import javax.imageio.ImageIO;
@@ -45,31 +48,9 @@ public class Main {
             }
         });
 
-        server.createContext("/register", new handler.RegisterHandler());
-        server.createContext("/login", new handler.LoginHandler());
-
-        server.createContext("/logout", exchange -> {
-            if (!exchange.getRequestURI().getPath().equals("/logout")) {
-                sendErrorPage(exchange, 404, "The page you are looking for has been moved or does not exist.");
-                return;
-            }
-            List<String> cookies = exchange.getRequestHeaders().get("Cookie");
-            if (cookies != null) {
-                for (String cookie : cookies) {
-                    if (cookie.contains("session_token=")) {
-                        String token = cookie.split("session_token=")[1].split(";")[0];
-                        SessionManager.invalidateSession(token);
-                        break;
-                    }
-                }
-            }
-            String killCookie = "session_token=; HttpOnly; Path=/; Max-Age=0";
-            exchange.getResponseHeaders().add("Set-Cookie", killCookie);
-            exchange.getResponseHeaders().add("Location", "/login");
-            exchange.sendResponseHeaders(302, -1);
-            exchange.close();
-        });
-
+        server.createContext("/register", new RegisterHandler());
+        server.createContext("/login", new LoginHandler());
+        server.createContext("/logout", new LogoutHandler());
         server.createContext("/profile", new ProfileHandler());
 
         server.createContext("/captcha", exchange -> {
