@@ -9,7 +9,7 @@ public class DatabaseManager {
     private static final String DB_NAME = "registration_app_db";
     private static final String URL = BASE_URL + DB_NAME;
     private static final String USER = System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "root";
-    private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "Dani";
+    private static final String PASSWORD = System.getenv("DB_PASS") != null ? System.getenv("DB_PASS") : "";
 
     public static void initDatabase() {
         try (Connection connection = DriverManager.getConnection(BASE_URL, USER, PASSWORD);
