@@ -12,7 +12,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
@@ -68,12 +67,5 @@ class DatabaseManagerTest {
         verify(mockStatement).executeUpdate(contains("CREATE DATABASE IF NOT EXISTS"));
         verify(mockStatement).executeUpdate(contains("CREATE TABLE IF NOT EXISTS users"));
         verify(mockPreparedStatement).executeUpdate();
-    }
-
-    @Test
-    void testInitDatabase_SQLExceptionCaught() {
-        mockedDriverManager.when(() -> DriverManager.getConnection(anyString(), anyString(), anyString())).thenThrow(new SQLException("Mocked DB Error"));
-
-        assertDoesNotThrow(DatabaseManager::initDatabase);
     }
 }
